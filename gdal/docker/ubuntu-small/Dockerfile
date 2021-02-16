@@ -62,6 +62,18 @@ RUN apt-get update -y \
     && apt-get install -y --fix-missing --no-install-recommends rsync ccache
 ARG RSYNC_REMOTE
 
+# Build ECW Drivers
+RUN wget -q https://downloads.hexagongeospatial.com/software/2020/ECW/ECWJP2SDKSetup_5.5.0.2034-Update3-Linux.zip \
+    && unzip ECWJP2SDKSetup_5.5.0.2034-Update3-Linux.zip && chmod +x ECWJP2SDKSetup_5.5.0.2034.bin \
+    && ./ECWJP2SDKSetup_5.5.0.2034.bin --accept-eula=YES --install-type=1 \
+    && mkdir -p /build_thirdparty/usr/local/lib/ \
+    && cp -r ~/hexagon/ERDAS-ECW_JPEG_2000_SDK-5.5.0/Desktop_Read-Only /build_thirdparty/usr/local/hexagon \
+    && rm -r /build_thirdparty/usr/local/hexagon/lib/x64 \
+    && mv /build_thirdparty/usr/local/hexagon/lib/cpp11abi/x64 /build_thirdparty/usr/local/hexagon/lib/x64 \
+    && cp /build_thirdparty/usr/local/hexagon/lib/x64/release/libNCSEcw* /build_thirdparty/usr/local/lib \
+    && ldconfig /build_thirdparty/usr/local/hexagon \
+    && rm -fr ECWJP2SDKSetup_5.5.0.2034* ~/hexagon/ERDAS-ECW_JPEG_2000_SDK*
+
 # Build PROJ
 ARG PROJ_VERSION=master
 RUN mkdir proj \
@@ -132,6 +144,7 @@ RUN if test "${GDAL_VERSION}" = "master"; then \
         ccache -M 1G; \
     fi \
     && ./configure --prefix=/usr --without-libtool \
+    --with-ecw=/build_thirdparty/usr/local/hexagon \
     --with-hide-internal-symbols \
     --with-jpeg12 \
     --with-python \
@@ -189,7 +202,7 @@ RUN apt-get update; \
 
 # Order layers starting with less frequently varying ones
 # Only used for custom libopenjp2
-# COPY --from=builder  /build_thirdparty/usr/ /usr/
+COPY --from=builder  /build_thirdparty/usr/ /usr/
 
 COPY --from=builder  /build_projgrids/usr/ /usr/
 
